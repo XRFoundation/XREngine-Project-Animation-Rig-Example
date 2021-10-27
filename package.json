@@ -1,0 +1,19 @@
+{
+  "name": "XREngine-Project-Animation-Rig-Example",
+  "version": "0.0.0",
+  "description": "",
+  "main": "",
+  "scripts": {},
+  "dependencies": {},
+  "peerDependencies": {
+    "@xrengine/client": "^0.4.10",
+    "@xrengine/client-core": "^0.4.10"
+  },
+  "xrengine": {
+    "routes": ["/ikrig"],
+    "thumbnail": "",
+    "moduleEntryPoints": [],
+    "clientReactEntryPoint": []
+  },
+  "license": "ISC"
+}
