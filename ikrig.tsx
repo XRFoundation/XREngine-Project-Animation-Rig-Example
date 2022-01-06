@@ -43,6 +43,11 @@ import { Entity } from '@xrengine/engine/src/ecs/classes/Entity'
 import { initializeEngine } from '@xrengine/engine/src/initializeEngine'
 import { bonesData2 } from '@xrengine/engine/src/avatar/DefaultSkeletonBones'
 import { SkeletonUtils } from '@xrengine/engine/src/avatar/SkeletonUtils'
+import { Network } from '@xrengine/engine/src/networking/classes/Network'
+import {
+  ClientTransportHandler,
+  SocketWebRTCClientTransport
+} from '@xrengine/client-core/src/transports/SocketWebRTCClientTransport'
 
 const AnimationSystem = async (world: World): Promise<System> => {
   const animationQuery = defineQuery([AnimationComponent])
@@ -136,12 +141,14 @@ const Page = () => {
 
   useEffect(() => {
     ;(async function () {
+      Network.instance = new Network()
+      Network.instance.transportHandler = new ClientTransportHandler()
       await initializeEngine({ scene: { disabled: true } })
       // Register our systems to do stuff
       registerSystem(SystemUpdateType.UPDATE, Promise.resolve({ default: AnimationSystem }))
       registerSystem(SystemUpdateType.UPDATE, Promise.resolve({ default: SkeletonRigSystem }))
       registerSystem(SystemUpdateType.UPDATE, Promise.resolve({ default: RenderSystem }))
-      await Engine.defaultWorld.initSystems()
+      await Engine.currentWorld.initSystems()
 
       initExample()
         .then(({ sourceEntity, targetEntities }) => {
@@ -377,12 +384,12 @@ async function initExample(): Promise<{ sourceEntity: Entity; targetEntities: En
   19 - 'walk_right'
   20 - 'wave'
    */
-  const ANIM_FILE = '/models/avatars/Animations.glb'
-  const RIG_FILE = 'ikrig/anim/Walking.glb'
-  const MODEL_A_FILE = 'ikrig/models/vegeta.gltf'
-  const MODEL_B_FILE = 'ikrig/anim/Walking.glb'
-  const MODEL_C_FILE = 'ikrig/models/robo_trex.gltf'
-  const MODEL_D_FILE = '/models/avatars/Allison.glb'
+  const ANIM_FILE = '/default_assets/Animations.glb'
+  const RIG_FILE = '/default_assets/anim/Walking.glb'
+  const MODEL_A_FILE = '/default_assets/models/vegeta.gltf'
+  const MODEL_B_FILE = '/default_assets/anim/Walking.glb'
+  const MODEL_C_FILE = '/default_assets/models/robo_trex.gltf'
+  const MODEL_D_FILE = '/default_assets/models/avatars/Allison.glb'
   const ANIMATION_INDEX = 3
 
   const targetEntities = []
