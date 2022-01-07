@@ -385,11 +385,11 @@ async function initExample(): Promise<{ sourceEntity: Entity; targetEntities: En
   20 - 'wave'
    */
   const ANIM_FILE = '/default_assets/Animations.glb'
-  const RIG_FILE = '/default_assets/anim/Walking.glb'
-  const MODEL_A_FILE = '/default_assets/models/vegeta.gltf'
-  const MODEL_B_FILE = '/default_assets/anim/Walking.glb'
-  const MODEL_C_FILE = '/default_assets/models/robo_trex.gltf'
-  const MODEL_D_FILE = '/default_assets/models/avatars/Allison.glb'
+  const RIG_FILE = '/ikrig/anim/Walking.glb'
+  const MODEL_A_FILE = '/ikrig/models/vegeta.gltf'
+  const MODEL_B_FILE = '/ikrig/anim/Walking.glb'
+  const MODEL_C_FILE = '/ikrig/models/robo_trex.gltf'
+  const MODEL_D_FILE = '/models/avatars/Allison.glb'
   const ANIMATION_INDEX = 3
 
   const targetEntities = []
