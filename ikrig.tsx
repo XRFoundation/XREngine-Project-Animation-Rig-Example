@@ -34,15 +34,26 @@ import {
   Bone
 } from 'three'
 import { AnimationComponent } from '@xrengine/engine/src/avatar/components/AnimationComponent'
-import Debug from '@xrengine/client/src/components/Debug'
 import { World } from '@xrengine/engine/src/ecs/classes/World'
 import { System } from '@xrengine/engine/src/ecs/classes/System'
 import { addRig, addTargetRig } from '@xrengine/engine/src/ikrig/functions/RigFunctions'
 import { ArmatureType } from '@xrengine/engine/src/ikrig/enums/ArmatureType'
 import { Entity } from '@xrengine/engine/src/ecs/classes/Entity'
-import { initializeEngine } from '@xrengine/engine/src/initializeEngine'
+import {
+  createEngine,
+  initializeBrowser,
+  initializeCoreSystems,
+  initializeMediaServerSystems,
+  initializeNode,
+  initializeProjectSystems,
+  initializeRealtimeSystems,
+  initializeSceneSystems
+} from '@xrengine/engine/src/initializeEngine'
+import { SystemModuleType } from '@xrengine/engine/src/ecs/functions/SystemFunctions'
+import { useWorld } from '@xrengine/engine/src/ecs/functions/SystemHooks'
 import { bonesData2 } from '@xrengine/engine/src/avatar/DefaultSkeletonBones'
 import { SkeletonUtils } from '@xrengine/engine/src/avatar/SkeletonUtils'
+import AvatarBoneMatching from '@xrengine/engine/src/avatar/AvatarBoneMatching'
 import { Network } from '@xrengine/engine/src/networking/classes/Network'
 import {
   ClientTransportHandler,
@@ -79,7 +90,6 @@ const RenderSystem = async (): Promise<System> => {
       }
 
       Engine.renderer.setSize(width, height, true)
-      // Engine.effectComposer.setSize(width, height, false)
     }
     Engine.renderer.render(Engine.scene, Engine.camera)
   }
@@ -140,17 +150,35 @@ const Page = () => {
   }, [animationIndex])
 
   useEffect(() => {
-    ;(async function () {
+    (async function () {
+      
+      // Set up rendering and basic scene for demo
+      const canvas = document.createElement('canvas')
+      document.body.appendChild(canvas) // adds the canvas to the body element
+
+      const injectedSystems: SystemModuleType<any>[] = [
+        {
+          type: 'UPDATE',
+          systemModulePromise: Promise.resolve({ default: AnimationSystem })
+        },
+        {
+          type: 'UPDATE',
+          systemModulePromise: Promise.resolve({ default: SkeletonRigSystem })
+        },
+        {
+          type: 'UPDATE',
+          systemModulePromise: Promise.resolve({ default: RenderSystem })
+        }
+      ]
+      
+      if (Engine.isInitialized) return
       Network.instance = new Network()
       Network.instance.transportHandler = new ClientTransportHandler()
-      await initializeEngine({ scene: { disabled: true } })
-      // Register our systems to do stuff
-      registerSystem(SystemUpdateType.UPDATE, Promise.resolve({ default: AnimationSystem }))
-      registerSystem(SystemUpdateType.UPDATE, Promise.resolve({ default: SkeletonRigSystem }))
-      registerSystem(SystemUpdateType.UPDATE, Promise.resolve({ default: RenderSystem }))
-      await Engine.currentWorld.initSystems()
+      createEngine()
+      // initializeBrowser()
+      await initializeCoreSystems(injectedSystems)
 
-      initExample()
+      initExample(canvas)
         .then(({ sourceEntity, targetEntities }) => {
           const ac = getComponent(sourceEntity, AnimationComponent)
           setAnimationsList([...ac.animations])
@@ -164,6 +192,9 @@ const Page = () => {
 
           sourceEntityRef.current = sourceEntity
           animationClipActionRef.current = clipAction
+          //TODO: need to resize
+          Engine.renderer.setSize(0, 0)
+          document!.querySelector('html')!.style.pointerEvents = 'all'
         })
         .catch((e) => {
           console.error('Failed to init example', e)
@@ -246,7 +277,7 @@ const Page = () => {
             animationSpeed: 1
           })
           // const ac = getComponent(entity, AnimationComponent)
-          const clipAction = ac.mixer.clipAction(ac.animations[17])
+          const clipAction = ac.mixer.clipAction(ac.animations[15])
           clipAction.setEffectiveTimeScale(animationTimeScale).play()
           clipAction.play()
 
@@ -298,7 +329,6 @@ const Page = () => {
       timescale:{animationTimeScaleSelect}
       {doAnimationStepButtons}
       <input type="file" onChange={(e) => loadGLTFfromFile(e.target)} />
-      <Debug />
     </div>
   )
 }
@@ -332,9 +362,9 @@ function getBaseSkeletonGroup(): { group: Group; skinnedMesh: SkinnedMesh } {
   return { group, skinnedMesh }
 }
 
-async function initExample(): Promise<{ sourceEntity: Entity; targetEntities: Entity[] }> {
-  await initThree() // Set up the three.js scene with grid, light, etc
+async function initExample(canvas): Promise<{ sourceEntity: Entity; targetEntities: Entity[] }> {
 
+  await initThree(canvas) // Set up the three.js scene with grid, light, etc
   // initDebug()
 
   ////////////////////////////////////////////////////////////////////////////
@@ -384,11 +414,12 @@ async function initExample(): Promise<{ sourceEntity: Entity; targetEntities: En
   19 - 'walk_right'
   20 - 'wave'
    */
+
   const ANIM_FILE = '/default_assets/Animations.glb'
-  const RIG_FILE = '/ikrig/anim/Walking.glb'
-  const MODEL_A_FILE = '/ikrig/models/vegeta.gltf'
-  const MODEL_B_FILE = '/ikrig/anim/Walking.glb'
-  const MODEL_C_FILE = '/ikrig/models/robo_trex.gltf'
+  const RIG_FILE = 'https://172.160.10.156:8642/ik/anim/Walking.glb'
+  const MODEL_A_FILE = 'https://172.160.10.156:8642/ik/models/vegeta.gltf'
+  const MODEL_B_FILE = 'https://172.160.10.156:8642/ik/anim/Walking.glb'
+  const MODEL_C_FILE = 'https://172.160.10.156:8642/ik/models/robo_trex.gltf'
   const MODEL_D_FILE = '/models/avatars/Allison.glb'
   const ANIMATION_INDEX = 3
 
@@ -502,79 +533,31 @@ async function initExample(): Promise<{ sourceEntity: Entity; targetEntities: En
   let loadModels = []
 
   // LOAD MESH A
-  loadModels.push(
-    loadAndSetupModel(
-      MODEL_A_FILE,
-      skinnedMesh.parent,
-      sourceEntity,
-      new Vector3(1, 0, -2),
-      new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(-1, 0, 1).normalize()),
-      new Vector3(0.5, 0.5, 0.5)
-    ).then(({ entity }) => {
-      const rig = getComponent(entity, IKRigComponent)
-      rig.name = 'rigA-Vegeta'
-      rig.tpose.apply()
+  // loadModels.push(
+  //   loadAndSetupModel(
+  //     MODEL_A_FILE,
+  //     skinnedMesh.parent,
+  //     sourceEntity,
+  //     new Vector3(1, 0, 0),
+  //     new Quaternion(),
+  //     new Vector3(1, 1, 1)
+  //   ).then(({ entity }) => {
+  //     // const rig = getComponent(entity, IKRigComponent)
+  //     // rig.name = 'rigA-Vegeta'
+  //     // rig.tpose.apply()
+  //     // const ac = addComponent(entity, AnimationComponent, {
+  //     //   mixer: new AnimationMixer(rig.pose.skeleton.bones[0].parent),
+  //     //   animations: animModel.animations,
+  //     //   animationSpeed: 1
+  //     // })
+  //     // // const ac = getComponent(entity, AnimationComponent)
+  //     // const clipAction = ac.mixer.clipAction(ac.animations[17])
+  //     // clipAction.setEffectiveTimeScale(1).play()
+  //     // clipAction.play()
 
-      console.log('target rig', rig.name, rig)
-
-      const ac = addComponent(entity, AnimationComponent, {
-        mixer: new AnimationMixer(rig.pose.skeleton.bones[0].parent),
-        animations: animModel.animations,
-        animationSpeed: 1
-      })
-      // const ac = getComponent(entity, AnimationComponent)
-      const clipAction = ac.mixer.clipAction(ac.animations[17])
-      clipAction.setEffectiveTimeScale(1).play()
-      clipAction.play()
-
-      targetEntities.push(entity)
-    })
-  )
-  loadModels.push(
-    loadAndSetupModel(
-      MODEL_B_FILE,
-      skinnedMesh.parent,
-      sourceEntity,
-      new Vector3(-1, 0, -2),
-      new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(1, 0, 1).normalize()),
-      new Vector3(1, 1.2, 1)
-    ).then(({ entity }) => {
-      const rig = getComponent(entity, IKRigComponent)
-      rig.name = 'rigB'
-      rig.tpose.apply()
-
-      console.log('target rig', rig.name, rig)
-
-      targetEntities.push(entity)
-    })
-  )
-  loadModels.push(
-    loadAndSetupModel(
-      MODEL_C_FILE,
-      skinnedMesh.parent,
-      sourceEntity,
-      new Vector3(-2, 0, -2),
-      new Quaternion(),
-      new Vector3(1, 1, 1),
-      ArmatureType.TREX
-    ).then(({ entity }) => {
-      const rig = getComponent(entity, IKRigComponent)
-      rig.name = 'rigTRex'
-      rig.tpose.apply()
-
-      const ac = addComponent(entity, AnimationComponent, {
-        mixer: new AnimationMixer(rig.pose.skeleton.bones[0].parent),
-        animations: animModel.animations,
-        animationSpeed: 1
-      })
-      // const ac = getComponent(entity, AnimationComponent)
-      const clipAction = ac.mixer.clipAction(ac.animations[2])
-      clipAction.setEffectiveTimeScale(1).play()
-      clipAction.play()
-
-      targetEntities.push(entity)
-    })
-  )
+  //     targetEntities.push(entity)
+  //   })
+  // )
 
   await Promise.all(loadModels)
 
@@ -593,24 +576,19 @@ async function loadAndSetupModel(
   armatureType = ArmatureType.MIXAMO
 ): Promise<{ entity: Entity; skeletonHelper: SkeletonHelper }> {
   let targetModel = await LoadGLTF(filename)
-
   // Engine.scene.add(new SkeletonHelper(targetModel.scene));
   let targetSkinnedMeshes = []
-  targetModel.scene.traverse((node) => {
-    if (node.children) {
-      node.children.forEach((n) => {
-        if (n.type === 'SkinnedMesh') {
-          targetSkinnedMeshes.push(n)
-        }
-      })
+
+  targetModel.scene.traverse(o => {
+    if (o.isSkinnedMesh) {
+      targetSkinnedMeshes.push(o);
     }
-  })
+  });
+
   let targetSkinnedMesh = targetSkinnedMeshes.sort((a, b) => {
     return a.skeleton.bones.length - b.skeleton.bones.length
   })[0]
-
-  console.log('targetSkinnedMesh', targetSkinnedMesh)
-
+  
   // Create entity
   let targetEntity = createEntity()
   // addComponent(targetEntity, IKObj, { ref: targetSkinnedMesh })
@@ -630,12 +608,15 @@ async function loadAndSetupModel(
   //
 
   //setupIKRig(targetEntity, targetRig)
+  
   // TODO: we need to pass nearest common parent of bones and skinned mesh to addRig function
   const rootBone = targetSkinnedMesh.skeleton.bones.find((b) => b.parent.type !== 'Bone')
 
+  const retarget = AvatarBoneMatching(targetModel.scene)
+  const rootBone1 = retarget?.Root
+
   const model = new Group()
   model.add(rootBone.parent)
-  // const model = targetRig.pose.bones[0].bone.parent
 
   model.position.copy(position)
   model.quaternion.copy(quaternion)
@@ -643,14 +624,6 @@ async function loadAndSetupModel(
   Engine.scene.add(model)
 
   const targetRig = addTargetRig(targetEntity, rootBone.parent, null, false, armatureType)
-
-  // Set the skinned mesh reference
-  const targetObj = getComponent(targetEntity, IKObj)
-
-  // for (let index = 0; index < targetObj.ref.skeleton.bones.length; index++) {
-  //   const bone = targetObj.ref.skeleton.bones[index]
-  //   targetRig.tpose.setBone(index, bone.quaternion, bone.position, bone.scale)
-  // }
 
   const helper = new SkeletonHelper(targetRig.pose.bones[0].bone)
   Engine.scene.add(helper)
@@ -672,20 +645,17 @@ async function loadAndSetupModel(
   return { entity: targetEntity, skeletonHelper: helper }
 }
 
-async function initThree() {
-  // Set up rendering and basic scene for demo
-  const canvas = document.createElement('canvas')
-  document.body.appendChild(canvas) // adds the canvas to the body element
-
-  const w = window.innerWidth,
+async function initThree(canvas) {
+  let w = window.innerWidth,
     h = window.innerHeight
 
-  const ctx = canvas.getContext('webgl2') //, { alpha: false }
-  // @ts-ignore
+  Engine.effectComposer.removeAllPasses()
+
+  let ctx = canvas.getContext('webgl2') as WebGLRenderingContext //, { alpha: false }
   Engine.renderer = new WebGLRenderer({ canvas: canvas, context: ctx, antialias: true })
 
   Engine.renderer.setClearColor(0x3a3a3a, 1)
-  Engine.renderer.setSize(w, h)
+  Engine.renderer.setSize(0, 0)
 
   Engine.scene = new Scene()
   Engine.scene.add(new GridHelper(20, 20, 0x0c610c, 0x444444))
@@ -707,4 +677,6 @@ async function initThree() {
   Engine.scene.add(light)
 
   Engine.scene.add(new AmbientLight(0x404040))
+
+  // Engine.engineTimer.start()
 }
