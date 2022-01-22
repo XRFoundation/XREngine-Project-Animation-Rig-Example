@@ -6,8 +6,6 @@ import {
   defineQuery
 } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
 import { createEntity, removeEntity } from '@xrengine/engine/src/ecs/functions/EntityFunctions'
-import { registerSystem } from '@xrengine/engine/src/ecs/functions/SystemFunctions'
-import { SystemUpdateType } from '@xrengine/engine/src/ecs/functions/SystemUpdateType'
 import { defaultIKPoseComponentValues, IKPoseComponent } from '@xrengine/engine/src/ikrig/components/IKPoseComponent'
 import { IKRigComponent } from '@xrengine/engine/src/ikrig/components/IKRigComponent'
 import { IKObj } from '@xrengine/engine/src/ikrig/components/IKObj'
@@ -31,23 +29,17 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
-  Bone
+  Bone,
+  Object3D
 } from 'three'
 import { AnimationComponent } from '@xrengine/engine/src/avatar/components/AnimationComponent'
 import { World } from '@xrengine/engine/src/ecs/classes/World'
-import { System } from '@xrengine/engine/src/ecs/classes/System'
 import { addRig, addTargetRig } from '@xrengine/engine/src/ikrig/functions/RigFunctions'
 import { ArmatureType } from '@xrengine/engine/src/ikrig/enums/ArmatureType'
 import { Entity } from '@xrengine/engine/src/ecs/classes/Entity'
 import {
   createEngine,
-  initializeBrowser,
   initializeCoreSystems,
-  initializeMediaServerSystems,
-  initializeNode,
-  initializeProjectSystems,
-  initializeRealtimeSystems,
-  initializeSceneSystems
 } from '@xrengine/engine/src/initializeEngine'
 import { SystemModuleType } from '@xrengine/engine/src/ecs/functions/SystemFunctions'
 import { useWorld } from '@xrengine/engine/src/ecs/functions/SystemHooks'
@@ -57,10 +49,9 @@ import AvatarBoneMatching from '@xrengine/engine/src/avatar/AvatarBoneMatching'
 import { Network } from '@xrengine/engine/src/networking/classes/Network'
 import {
   ClientTransportHandler,
-  SocketWebRTCClientTransport
 } from '@xrengine/client-core/src/transports/SocketWebRTCClientTransport'
 
-const AnimationSystem = async (world: World): Promise<System> => {
+const AnimationSystem = async (world: World): Promise<any> => {
   const animationQuery = defineQuery([AnimationComponent])
   return () => {
     const { delta } = world
@@ -71,7 +62,7 @@ const AnimationSystem = async (world: World): Promise<System> => {
   }
 }
 
-const RenderSystem = async (): Promise<System> => {
+const RenderSystem = async (): Promise<any> => {
   const currentSize = new Vector2()
   return () => {
     const width = window.innerWidth
@@ -111,15 +102,15 @@ const Page = () => {
   console.log('RENDER', animationTimeScale, animationTime)
 
   useEffect(() => {
-    if (animationClipActionRef.current) {
+    if (animationClipActionRef.current!) {
       console.log('useEffect animationTimeScale, set:', animationTimeScale)
-      animationClipActionRef.current.setEffectiveTimeScale(animationTimeScale)
+      animationClipActionRef.current!.setEffectiveTimeScale(animationTimeScale)
     }
   }, [animationTimeScale])
 
   useEffect(() => {
-    if (animationClipActionRef.current) {
-      animationClipActionRef.current.time = animationTime
+    if (animationClipActionRef.current!) {
+      animationClipActionRef.current!.time = animationTime
     }
   }, [animationTime])
 
@@ -133,12 +124,12 @@ const Page = () => {
       console.log('new clip', clipAction)
       clipAction.setEffectiveTimeScale(animationTimeScale).play()
 
-      animationClipActionRef.current.crossFadeTo(clipAction, 1, false)
+      animationClipActionRef.current!.crossFadeTo(clipAction, 1, false)
 
       console.log('CLIP', clipAction)
       window['CLIP'] = clipAction
-
-      animationClipActionRef.current = clipAction
+      //@ts-ignore
+      animationClipActionRef.current! = clipAction
 
       if (customModelEntityRef.current) {
         const ac = getComponent(customModelEntityRef.current, AnimationComponent)
@@ -151,7 +142,6 @@ const Page = () => {
 
   useEffect(() => {
     (async function () {
-      
       // Set up rendering and basic scene for demo
       const canvas = document.createElement('canvas')
       document.body.appendChild(canvas) // adds the canvas to the body element
@@ -189,12 +179,12 @@ const Page = () => {
           clipAction.play()
           console.log('CLIP', clipAction)
           window['CLIP'] = clipAction
-
+          //@ts-ignore
           sourceEntityRef.current = sourceEntity
-          animationClipActionRef.current = clipAction
+          //@ts-ignore
+          animationClipActionRef.current! = clipAction
           //TODO: need to resize
           Engine.renderer.setSize(0, 0)
-          document!.querySelector('html')!.style.pointerEvents = 'all'
         })
         .catch((e) => {
           console.error('Failed to init example', e)
@@ -207,15 +197,15 @@ const Page = () => {
   }, [])
 
   function doAnimationStepTime(time: number) {
-    setAnimationTime(animationClipActionRef.current.time + time)
+    setAnimationTime(animationClipActionRef.current!.time + time)
     setAnimationTimeScale(0)
   }
   function doAnimationStepFrame() {
-    const clip = animationClipActionRef.current.getClip()
+    const clip = animationClipActionRef.current!.getClip()
     let nextAnimationTime = clip.tracks[0].times.find((currentValue) => {
-      return currentValue > animationClipActionRef.current.time
-    })
-    if (typeof animationTime === 'undefined' || animationClipActionRef.current.time === nextAnimationTime) {
+      return currentValue > animationClipActionRef.current!.time
+    }) as number
+    if (typeof animationTime === 'undefined' || animationClipActionRef.current!.time === nextAnimationTime) {
       nextAnimationTime = clip.tracks[0].times[0]
     }
     setAnimationTime(nextAnimationTime)
@@ -232,15 +222,16 @@ const Page = () => {
       // cleanup
       const obj = getComponent(customModelEntityRef.current, IKObj)
       console.log('obj', obj)
-      obj.ref.parent.removeFromParent()
+      obj.ref.parent!.removeFromParent()
       removeEntity(customModelEntityRef.current)
-      customModelSkeletonHelperRef.current.removeFromParent()
-
+      customModelSkeletonHelperRef.current!.removeFromParent()
+      //@ts-ignore
       customModelSkeletonHelperRef.current = null
+      //@ts-ignore
       customModelEntityRef.current = null
     }
 
-    const sourceSkeleton = getComponent(sourceEntityRef.current, IKObj).ref
+    const sourceSkeleton = getComponent(sourceEntityRef.current!, IKObj).ref
 
     const justLoad = false
     if (justLoad) {
@@ -266,13 +257,15 @@ const Page = () => {
       )
         .then(({ entity, skeletonHelper }) => {
           const rig = getComponent(entity, IKRigComponent)
+          //@ts-ignore
           rig.name = 'custom'
           // rig.tpose.apply()
 
+          //@ts-ignore
           console.log('target rig', rig.name, rig)
 
           const ac = addComponent(entity, AnimationComponent, {
-            mixer: new AnimationMixer(rig.pose.skeleton.bones[0].parent),
+            mixer: new AnimationMixer(rig.pose.skeleton.bones[0].parent as Object3D),
             animations: animationsList,
             animationSpeed: 1
           })
@@ -281,7 +274,9 @@ const Page = () => {
           clipAction.setEffectiveTimeScale(animationTimeScale).play()
           clipAction.play()
 
+          //@ts-ignore
           customModelEntityRef.current = entity
+          //@ts-ignore
           customModelSkeletonHelperRef.current = skeletonHelper
         })
         .catch((error) => {
@@ -336,7 +331,7 @@ const Page = () => {
 export default Page
 
 function getBaseSkeletonGroup(): { group: Group; skinnedMesh: SkinnedMesh } {
-  const bones = []
+  const bones: any[] = []
   bonesData2.forEach((data) => {
     const bone = new Bone()
     bone.name = data.name
@@ -431,7 +426,7 @@ async function initExample(canvas): Promise<{ sourceEntity: Entity; targetEntiti
   console.log('Animations:')
   animModel.animations.forEach((a, i) => console.log(i, a.name))
   const hipsBone = animModel.scene.getObjectByName('Hips')
-  const bones = []
+  const bones : any[] = []
   const mapBoneToIndex = new Map<any, number>()
   hipsBone.traverse((child) => {
     mapBoneToIndex.set(child, bones.length)
@@ -447,7 +442,7 @@ async function initExample(canvas): Promise<{ sourceEntity: Entity; targetEntiti
     if (!mapBoneToIndex.has(child.parent)) {
       return
     }
-    const index = mapBoneToIndex.get(child)
+    const index = mapBoneToIndex.get(child) as number
     const parentIndex = mapBoneToIndex.get(child.parent)
     bones[index].parentIndex = parentIndex
   })
@@ -455,7 +450,7 @@ async function initExample(canvas): Promise<{ sourceEntity: Entity; targetEntiti
 
   let rigModel = await LoadGLTF(RIG_FILE)
   // Set up skinned meshes
-  let skinnedMeshes = []
+  let skinnedMeshes: any[] = []
   rigModel.scene.position.set(0, 0, -1)
   rigModel.scene.traverse((node) => {
     if (node.children)
@@ -464,7 +459,7 @@ async function initExample(canvas): Promise<{ sourceEntity: Entity; targetEntiti
         // n.visible = false
       })
   })
-  let skinnedMesh: SkinnedMesh = skinnedMeshes.sort((a, b) => {
+  let skinnedMesh: SkinnedMesh = skinnedMeshes.sort((a: any, b: any) => {
     return a.skeleton.bones.length - b.skeleton.bones.length
   })[0]
 
@@ -524,7 +519,7 @@ async function initExample(canvas): Promise<{ sourceEntity: Entity; targetEntiti
     animationSpeed: 1
   })
 
-  const rig = addRig(sourceEntity, skinnedMesh.parent, null, false, ArmatureType.MIXAMO)
+  const rig = addRig(sourceEntity, skinnedMesh.parent as any, null, false, ArmatureType.MIXAMO)
   addComponent(sourceEntity, IKPoseComponent, defaultIKPoseComponentValues())
 
   console.log('source rig', rig)
@@ -577,7 +572,7 @@ async function loadAndSetupModel(
 ): Promise<{ entity: Entity; skeletonHelper: SkeletonHelper }> {
   let targetModel = await LoadGLTF(filename)
   // Engine.scene.add(new SkeletonHelper(targetModel.scene));
-  let targetSkinnedMeshes = []
+  let targetSkinnedMeshes: any[] = []
 
   targetModel.scene.traverse(o => {
     if (o.isSkinnedMesh) {
@@ -585,7 +580,7 @@ async function loadAndSetupModel(
     }
   });
 
-  let targetSkinnedMesh = targetSkinnedMeshes.sort((a, b) => {
+  let targetSkinnedMesh = targetSkinnedMeshes.sort((a: any, b: any) => {
     return a.skeleton.bones.length - b.skeleton.bones.length
   })[0]
   
