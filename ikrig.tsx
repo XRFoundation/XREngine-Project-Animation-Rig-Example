@@ -417,12 +417,8 @@ async function initExample(canvas): Promise<{ sourceEntity: Entity; targetEntiti
    */
 
   const ANIM_FILE = '/default_assets/Animations.glb'
-  const RIG_FILE = 'https://172.160.10.156:8642/ik/anim/Walking.glb'
-  const MODEL_A_FILE = 'https://172.160.10.156:8642/avatars/public/new/vrm/AvatarSample_A.vrm'
-  const MODEL_B_FILE = 'https://172.160.10.156:8642/ik/anim/Walking.glb'
-  const MODEL_C_FILE = 'https://172.160.10.156:8642/ik/models/robo_trex.gltf'
-  const MODEL_D_FILE = '/models/avatars/Allison.glb'
-  const ANIMATION_INDEX = 3
+  const RIG_FILE = '/default_assets/anim/Walking.glb'
+  // const MODEL_A_FILE = '---testing model url---'
 
   const targetEntities = []
 
@@ -530,37 +526,37 @@ async function initExample(canvas): Promise<{ sourceEntity: Entity; targetEntiti
 
   console.log('source rig', rig)
 
-  ////////////////////////////////////////////////////////////////////////////
+  ///////////////////////Testing Model/////////////////////////////////////
   let loadModels = []
 
-  const loading = loadAndSetupModel(
-    MODEL_A_FILE,
-    skinnedMesh.parent,
-    sourceEntity,
-    new Vector3(0, 0, 0),
-    new Quaternion(),
-    new Vector3(1, 1, 1)
-  ).then(({ entity, skeletonHelper }) => {
-    const rig = getComponent(entity, IKRigComponent)
-    //@ts-ignore
-    rig.name = 'rigA-Vegeta'
-    rig.tpose.apply()
-    const ac = addComponent(entity, AnimationComponent, {
-      //@ts-ignore
-      mixer: new AnimationMixer(rig.pose.skeleton.bones[0].parent),
-      animations: animModel.animations,
-      animationSpeed: 1
-    })
-    // const ac = getComponent(entity, AnimationComponent)
-    const clipAction = ac.mixer.clipAction(ac.animations[17])
-    clipAction.setEffectiveTimeScale(1).play()
-    clipAction.play()
-    //@ts-ignore
-    targetEntities.push(entity)
-  })
+  // const loading = loadAndSetupModel(
+  //   MODEL_A_FILE,
+  //   skinnedMesh.parent,
+  //   sourceEntity,
+  //   new Vector3(0, 0, 0),
+  //   new Quaternion(),
+  //   new Vector3(1, 1, 1)
+  // ).then(({ entity, skeletonHelper }) => {
+  //   const rig = getComponent(entity, IKRigComponent)
+  //   //@ts-ignore
+  //   rig.name = 'rigA-Vegeta'
+  //   rig.tpose.apply()
+  //   const ac = addComponent(entity, AnimationComponent, {
+  //     //@ts-ignore
+  //     mixer: new AnimationMixer(rig.pose.skeleton.bones[0].parent),
+  //     animations: animModel.animations,
+  //     animationSpeed: 1
+  //   })
+  //   // const ac = getComponent(entity, AnimationComponent)
+  //   const clipAction = ac.mixer.clipAction(ac.animations[17])
+  //   clipAction.setEffectiveTimeScale(1).play()
+  //   clipAction.play()
+  //   //@ts-ignore
+  //   targetEntities.push(entity)
+  // })
   
   //@ts-ignore
-  loadModels.push(loading)
+  // loadModels.push(loading)
 
   await Promise.all(loadModels)
 
