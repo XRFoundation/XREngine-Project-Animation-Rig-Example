@@ -94,6 +94,7 @@ const RenderSystem = async (): Promise<any> => {
 
 // This is a functional React component
 const Page = () => {
+  const [modelUrl, setModelUrl] = useState("")
   const [animationTimeScale, setAnimationTimeScale] = useState(1)
   const [animationIndex, setAnimationIndex] = useState(3)
   const [animationTime, setAnimationTime] = useState(0.6225028089213559)
@@ -218,40 +219,8 @@ const Page = () => {
     setAnimationTimeScale(0)
   }
 
-  function loadGLTFfromFile(input: HTMLInputElement) {
-    if (!input.files) {
-      return
-    }
-    const objectURL = window.URL.createObjectURL(input.files[0])
-
-    if (customModelEntityRef.current) {
-      // cleanup
-      const obj = getComponent(customModelEntityRef.current, IKObj)
-      console.log('obj', obj)
-      obj.ref.parent!.removeFromParent()
-      removeEntity(customModelEntityRef.current)
-      customModelSkeletonHelperRef.current!.removeFromParent()
-      //@ts-ignore
-      customModelSkeletonHelperRef.current = null
-      //@ts-ignore
-      customModelEntityRef.current = null
-    }
-
-    const sourceSkeleton = getComponent(sourceEntityRef.current!, IKObj).ref
-
-    const justLoad = false
-    if (justLoad) {
-      LoadGLTF(objectURL)
-        .then((gltf) => {
-          const helper = new SkeletonHelper(gltf.scene)
-          Engine.scene.add(helper)
-          Engine.scene.add(gltf.scene)
-        })
-        .finally(() => {
-          window.URL.revokeObjectURL(objectURL)
-        })
-    } else {
-      const result = getBaseSkeletonGroup()
+  function loadAssetFileFromUrl(objectURL: string) {
+    const result = getBaseSkeletonGroup()
 
       loadAndSetupModel(
         objectURL,
@@ -292,7 +261,6 @@ const Page = () => {
         .finally(() => {
           window.URL.revokeObjectURL(objectURL)
         })
-    }
   }
 
   const animationTimeScaleSelect = (
@@ -326,10 +294,11 @@ const Page = () => {
   // Some JSX to keep the compiler from complaining
   return (
     <div style={{ position: 'absolute' }}>
+      url:<input style={{ width: '300px' }} type="text" value={modelUrl} onChange={(e) => setModelUrl(e.target.value)} />
+      <button onClick={() => loadAssetFileFromUrl(modelUrl)} >Open</button>
       anim:{animationsSelect}
       timescale:{animationTimeScaleSelect}
       {doAnimationStepButtons}
-      <input type="file" onChange={(e) => loadGLTFfromFile(e.target)} />
     </div>
   )
 }
@@ -418,7 +387,10 @@ async function initExample(canvas): Promise<{ sourceEntity: Entity; targetEntiti
 
   const ANIM_FILE = '/default_assets/Animations.glb'
   const RIG_FILE = '/default_assets/anim/Walking.glb'
+  // const RIG_FILE = '  https://172.160.10.156:8642/ik/anim/Walking.glb'
+
   // const MODEL_A_FILE = '---testing model url---'
+  //https://172.160.10.156:8642/avatars/public/new/vrm/AvatarSample_A.vrm
 
   const targetEntities = []
 
